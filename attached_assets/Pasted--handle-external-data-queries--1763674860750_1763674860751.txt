@@ -1,0 +1,345 @@
+ إصلاح معالجة اللغة الإنجليزية
+استبدل دالة handle_external_data_queries في الكود بهذا الإصدار المحسن:
+
+python
+def handle_external_data_queries(self, user_input):
+    """معالج استعلامات البيانات الخارجية مع دعم كامل للإنجليزية"""
+    try:
+        user_input_lower = user_input.lower().strip()
+        
+        # معالجة التحيات الإنجليزية أولاً
+        english_greetings = ["hi", "hello", "hey", "good morning", "good evening", "good afternoon"]
+        if any(greeting in user_input_lower for greeting in english_greetings):
+            return {
+                "text": """🌟 Hello! I'm your advanced AI assistant. 
+
+🤖 I can help you with:
+✅ Smart conversations in both Arabic and English
+✅ Real-time weather information  
+✅ Student and product databases
+✅ Company and restaurant directories
+✅ Medical information
+
+Try asking me about:
+• "Weather in Riyadh"
+• "Student information" 
+• "Products catalog"
+• Or ask in Arabic for the best results!""",
+                "type": "english_greeting"
+            }
+
+        # معالجة استعلامات اللغة
+        language_keywords = ["تتكلم", "انجليزي", "عربي", "لغة", "language", "speak english", "arabic", "english"]
+        if any(keyword in user_input_lower for keyword in language_keywords):
+            return {
+                "text": """🌍 Yes, I speak both Arabic and English fluently!
+
+🎯 Primary Language: Arabic (fully optimized)
+🔤 Secondary Language: English (full support)
+
+📊 I'm trained on:
+✅ Arabic texts (specialized)
+✅ English conversations  
+✅ Technical terms in both languages
+✅ Context understanding in both
+
+💡 For best results, you can use either language!""",
+                "type": "language_info"
+            }
+
+        # معالجة استعلامات الطقس بالإنجليزية
+        weather_keywords_en = ["weather", "temperature", "forecast", "climate"]
+        if any(word in user_input_lower for word in weather_keywords_en):
+            return self.handle_english_weather_query(user_input)
+
+        # استعلامات الطلاب بالإنجليزية
+        student_keywords_en = ["student", "students", "pupil", "enrollment", "university", "college"]
+        if any(word in user_input_lower for word in student_keywords_en):
+            return self.handle_english_student_query(user_input)
+
+        # استعلامات المنتجات بالإنجليزية
+        product_keywords_en = ["product", "products", "laptop", "phone", "electronics", "price", "shop", "buy", "item"]
+        if any(word in user_input_lower for word in product_keywords_en):
+            return self.handle_english_product_query(user_input)
+
+        # استعلامات الشركات بالإنجليزية
+        company_keywords_en = ["company", "companies", "corporation", "firm", "business", "enterprise"]
+        if any(word in user_input_lower for word in company_keywords_en):
+            return self.handle_english_company_query(user_input)
+
+        # استعلامات المطاعم بالإنجليزية
+        restaurant_keywords_en = ["restaurant", "restaurants", "food", "cuisine", "eatery", "diner", "meal"]
+        if any(word in user_input_lower for word in restaurant_keywords_en):
+            return self.handle_english_restaurant_query(user_input)
+
+        # استعلامات طبية بالإنجليزية
+        medical_keywords_en = ["medicine", "drug", "prescription", "symptom", "headache", "fever", "pain", "doctor"]
+        if any(word in user_input_lower for word in medical_keywords_en):
+            return self.handle_english_medical_query(user_input)
+
+        # استعلامات الوقت بالإنجليزية
+        time_keywords_en = ["time", "what time is it", "current time", "date", "today", "clock"]
+        if any(word in user_input_lower for word in time_keywords_en):
+            current_time = datetime.datetime.now()
+            response_text = f"⏰ Current Time: {current_time.strftime('%H:%M:%S')} | Date: {current_time.strftime('%Y-%m-%d')}"
+            return {
+                "text": response_text,
+                "type": "time_response"
+            }
+
+        # استعلامات المساعدة بالإنجليزية
+        help_keywords_en = ["help", "assist", "what can you do", "capabilities", "features"]
+        if any(word in user_input_lower for word in help_keywords_en):
+            return {
+                "text": """🚀 I'm an advanced AI assistant with these capabilities:
+
+🤖 **Core Features:**
+✅ Bilingual conversations (Arabic/English)
+✅ Real-time data processing
+✅ External API integration
+✅ SQLite database management
+
+📊 **Data Services:**
+🌤️ Weather information: "weather in Riyadh"
+🎓 Student database: "student information"  
+🛍️ Product catalog: "electronics products"
+🏢 Company directory: "Saudi companies"
+🍽️ Restaurant guide: "restaurants in Jeddah"
+💊 Medical information: "headache medicine"
+
+💡 **Try these examples:**
+• "What's the weather in Jeddah?"
+• "Show me students in computer engineering"
+• "Find laptops in products"
+• "List companies in Riyadh"
+
+I'm here to help in both English and Arabic!""",
+                "type": "help_info"
+            }
+
+        return None
+
+    except Exception as e:
+        print(f"❌ Error in handle_external_data_queries: {e}")
+        return None
+وأيضاً أصلح دوال المعالجة الإنجليزية:
+
+python
+def handle_english_weather_query(self, user_input):
+    """معالجة استعلامات الطقس الإنجليزية"""
+    try:
+        cities_en = ["riyadh", "jeddah", "dammam", "abha", "tabuk", "mecca", "medina", "taif"]
+        user_input_lower = user_input.lower()
+
+        found_city_en = None
+        for city in cities_en:
+            if city in user_input_lower:
+                found_city_en = city
+                break
+
+        if found_city_en:
+            city_mapping = {
+                "riyadh": "الرياض", "jeddah": "جدة", "dammam": "الدمام",
+                "abha": "أبها", "tabuk": "تبوك", "mecca": "مكة",
+                "medina": "المدينة", "taif": "الطائف"
+            }
+            arabic_city = city_mapping.get(found_city_en, found_city_en)
+            weather = self.data_manager.get_weather_info(arabic_city)
+
+            if weather:
+                return {
+                    "text": f"""🌤️ Weather in {found_city_en.title()} ({arabic_city}):
+
+🌡️ Temperature: {weather['temp']}°C
+💧 Humidity: {weather['humidity']}%
+☀️ Condition: {weather.get('condition_en', weather['condition'])}
+💨 Wind: {weather['wind']}
+
+📊 Source: {weather.get('source', 'Local database')}
+{'⚡ Real-time data from internet!' if weather.get('real_time') else '📝 Sample data - Add API key for live data'}""",
+                    "type": "weather_en",
+                    "data": weather
+                }
+
+        return {
+            "text": "🌤️ Please specify a Saudi city: Riyadh, Jeddah, Dammam, Abha, Tabuk, Mecca, Medina, or Taif\n\nExample: 'weather in Riyadh' or 'what's the temperature in Jeddah?'",
+            "type": "info"
+        }
+    except Exception as e:
+        print(f"❌ Error in english weather query: {e}")
+        return {
+            "text": "🌤️ I can help with weather information for Saudi cities. Try: 'weather in Riyadh'",
+            "type": "info"
+        }
+
+def handle_english_student_query(self, user_input):
+    """معالجة استعلامات الطلاب الإنجليزية"""
+    try:
+        results = self.data_manager.search_students(user_input)
+        if results:
+            response_text = "👥 Student Search Results:\n\n"
+            for student in results[:3]:
+                response_text += f"""🎓 {student.get('name_en', student['name'])}
+📚 Major: {student.get('major_en', student['major'])}
+📊 GPA: {student['gpa']}
+📅 Year: {student['year']}
+🏛️ University: {student['university']}
+
+"""
+            response_text += "💾 Data Source: students_data.csv\n🔗 Connected to external database system"
+            return {
+                "text": response_text,
+                "type": "students_en",
+                "data": results
+            }
+        return {
+            "text": "🔍 No students found matching your query.\n\nTry: 'computer engineering students' or 'students named Ahmed'",
+            "type": "info"
+        }
+    except Exception as e:
+        print(f"❌ Error in english student query: {e}")
+        return {
+            "text": "🎓 I can search student database. Try: 'find engineering students'",
+            "type": "info"
+        }
+
+def handle_english_product_query(self, user_input):
+    """معالجة استعلامات المنتجات الإنجليزية"""
+    try:
+        results = self.data_manager.search_products(user_input)
+        if results:
+            response_text = "🛍️ Product Search Results:\n\n"
+            for product in results[:3]:
+                response_text += f"""📦 {product.get('name_en', product['name'])}
+💰 Price: {product['price']} SAR
+📂 Category: {product.get('category_en', product['category'])}
+🏷️ Brand: {product.get('brand', 'N/A')}
+⭐ Rating: {product.get('rating', 'N/A')}/5
+📊 Stock: {product['stock']} units
+
+"""
+            response_text += "🗂️ Connected to product inventory system"
+            return {
+                "text": response_text,
+                "type": "products_en",
+                "data": results
+            }
+        return {
+            "text": "🔍 No products found matching your query.\n\nTry: 'laptops', 'electronics', or 'phones'",
+            "type": "info"
+        }
+    except Exception as e:
+        print(f"❌ Error in english product query: {e}")
+        return {
+            "text": "🛍️ I can search product catalog. Try: 'show me laptops'",
+            "type": "info"
+        }
+
+def handle_english_company_query(self, user_input):
+    """معالجة استعلامات الشركات الإنجليزية"""
+    try:
+        results = self.data_manager.search_companies(user_input)
+        if results:
+            response_text = "🏢 Company Search Results:\n\n"
+            for company in results[:3]:
+                response_text += f"""🏢 {company.get('name_en', company['name'])}
+🏭 Sector: {company.get('sector_en', company['sector'])}
+👥 Employees: {company['employees']:,}
+📍 City: {company['city']}
+
+"""
+            response_text += "💼 Connected to business database"
+            return {
+                "text": response_text,
+                "type": "companies_en",
+                "data": results
+            }
+        return {
+            "text": "🔍 No companies found matching your query.\n\nTry: 'Saudi Aramco', 'telecommunications companies', or 'companies in Riyadh'",
+            "type": "info"
+        }
+    except Exception as e:
+        print(f"❌ Error in english company query: {e}")
+        return {
+            "text": "🏢 I can search company directory. Try: 'list technology companies'",
+            "type": "info"
+        }
+
+def handle_english_restaurant_query(self, user_input):
+    """معالجة استعلامات المطاعم الإنجليزية"""
+    try:
+        results = self.data_manager.search_restaurants(user_input)
+        if results:
+            response_text = "🍽️ Restaurant Search Results:\n\n"
+            for restaurant in results[:3]:
+                response_text += f"""🍽️ {restaurant.get('name_en', restaurant['name'])}
+🍴 Cuisine: {restaurant.get('cuisine_en', restaurant['cuisine'])}
+⭐ Rating: {restaurant['rating']}/5
+💰 Price Range: {restaurant['price_range']}
+📍 City: {restaurant['city']}
+
+"""
+            response_text += "🗺️ Connected to restaurant guide database"
+            return {
+                "text": response_text,
+                "type": "restaurants_en",
+                "data": results
+            }
+        return {
+            "text": "🔍 No restaurants found matching your query.\n\nTry: 'Italian restaurants', 'restaurants in Riyadh', or 'Middle Eastern cuisine'",
+            "type": "info"
+        }
+    except Exception as e:
+        print(f"❌ Error in english restaurant query: {e}")
+        return {
+            "text": "🍽️ I can search restaurant guide. Try: 'find Italian restaurants'",
+            "type": "info"
+        }
+
+def handle_english_medical_query(self, user_input):
+    """معالجة الاستعلامات الطبية الإنجليزية"""
+    try:
+        user_input_lower = user_input.lower()
+        response_text = "🩺 Medical Information:\n\n"
+
+        # البحث عن الأدوية
+        found_medicines = []
+        for medicine in self.data_manager.medical_database["medicines"]:
+            if (medicine["name_en"].lower() in user_input_lower or
+                medicine["name"].lower() in user_input_lower):
+                found_medicines.append(medicine)
+                response_text += f"💊 About '{medicine['name_en']}' ({medicine['name']}):\n"
+                response_text += f"   - Type: {medicine['type']}\n"
+                response_text += f"   - Dose: {medicine['dose']}\n"
+                response_text += f"   - Frequency: {medicine['frequency']}\n\n"
+
+        # البحث عن الأعراض
+        for symptom, medicines in self.data_manager.medical_database["symptoms_medicine_map"].items():
+            if symptom in user_input_lower:
+                response_text += f"🤒 About '{symptom}':\n"
+                response_text += f"   - Suggested medicines: {', '.join(medicines)}\n"
+                response_text += "   - **Warning:** These are just suggestions, always consult a doctor!\n\n"
+
+        if not found_medicines and "medicine" not in response_text:
+            response_text = """🩺 Welcome to Medical Information Section!
+
+I can help you with medicine information and symptoms.
+
+✨ **Try questions like:**
+• "What is paracetamol used for?"
+• "Medicine for headache"
+• "Symptoms of allergy"
+
+**Important Note:** I'm not a substitute for professional medical advice. Always consult your doctor or pharmacist before taking any medicine.
+"""
+
+        return {
+            "text": response_text,
+            "type": "medical_info_en"
+        }
+    except Exception as e:
+        print(f"❌ Error in english medical query: {e}")
+        return {
+            "text": "🩺 I can provide general medical information. Try: 'headache medicine' or 'what is paracetamol'",
+            "type": "info"
+        }

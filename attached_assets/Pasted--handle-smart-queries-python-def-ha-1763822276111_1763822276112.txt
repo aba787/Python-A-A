@@ -1,0 +1,145 @@
+🔧 إصلاح فحص الإنترنت الذكي
+استبدل دالة handle_smart_queries بهذا الإصدار المحسن:
+
+python
+def handle_smart_queries(self, user_input):
+    """معالجة الاستعلامات الذكية مع فحص ذكي للإنترنت"""
+    try:
+        user_input_lower = user_input.lower()
+        
+        # فقط الاستعلامات التي تحتاج إنترنت يتم فحصها
+        internet_dependent_queries = [
+            'طقس', 'weather', 'أخبار', 'news', 'سعر', 'عملة', 'currency',
+            'كورونا', 'كوفيد', 'covid', 'سهم', 'stock', 'بحث', 'search',
+            'ترجمة', 'translate'
+        ]
+        
+        # إذا لم يكن الاستعلام يحتاج إنترنت، تخطى الفحص
+        needs_internet = any(word in user_input_lower for word in internet_dependent_queries)
+        
+        if needs_internet:
+            internet_status = self.data_manager.check_internet_connection()
+            
+            if not internet_status:
+                return {
+                    "text": "🌐 عذراً، لا يوجد اتصال بالإنترنت حالياً.\n\n✨ ولكن يمكنني مساعدتك في:\n• 🕒 الوقت والتاريخ\n• 🎓 قاعدة بيانات الطلاب\n• 🛍️ المنتجات والمتاجر\n• 🏢 دليل الشركات\n• 🍽️ المطاعم\n• 💊 المعلومات الطبية\n• 📊 الإحصائيات المحلية\n\n💡 جرب: 'طلاب هندسة' أو 'منتجات إلكترونية' أو 'كم الساعة'",
+                    "type": "no_internet"
+                }
+
+        # الآن معالجة الاستعلامات حسب النوع
+        user_input_lower = user_input.lower()
+        
+        # استعلامات الطقس الحقيقية
+        if any(word in user_input_lower for word in ['طقس', 'weather', 'درجة حرارة']):
+            cities = ["الرياض", "جدة", "الدمام", "أبها", "تبوك", "مكة", "المدينة", "الطائف"]
+            for city in cities:
+                if city in user_input:
+                    real_weather = self.data_manager.get_real_weather_from_api(city)
+                    if real_weather and real_weather.get('real_time'):
+                        return {
+                            "text": f"""🌤️ الطقس الحقيقي في {real_weather['city']}:
+
+🌡️ درجة الحرارة: {real_weather['temp']}°م
+💧 الرطوبة: {real_weather['humidity']}%
+☀️ الحالة: {real_weather['condition']}
+💨 سرعة الرياح: {real_weather['wind']}
+
+✅ بيانات حية من الإنترنت 🌐
+🕒 آخر تحديث: {real_weather['timestamp']}""",
+                            "type": "real_weather",
+                            "data": real_weather
+                        }
+                    else:
+                        # استخدام البيانات المحلية إذا فشل الاتصال
+                        weather = self.data_manager.get_weather_info(city)
+                        if weather:
+                            return {
+                                "text": f"""🌤️ الطقس في {weather['city']} (بيانات محلية):
+
+🌡️ درجة الحرارة: {weather['temp']}°م  
+💧 الرطوبة: {weather['humidity']}%
+☀️ الحالة: {weather['condition']}
+💨 سرعة الرياح: {weather['wind']}
+
+📝 بيانات تجريبية - جرب مع اتصال إنترنت للبيانات الحية""",
+                                "type": "local_weather",
+                                "data": weather
+                            }
+
+        # أخبار حقيقية
+        if any(word in user_input_lower for word in ['أخبار', 'news', 'أحدث الأخبار']):
+            real_news = self.data_manager.get_real_news_from_api()
+            if real_news:
+                response_text = "📰 آخر الأخبار الدولية:\n\n"
+                for i, news in enumerate(real_news[:3], 1):
+                    response_text += f"{i}. {news['title']}\n   📰 {news['source']}\n\n"
+                response_text += "🌐 تم جلب الأخبار من مصادر إخبارية"
+                return {
+                    "text": response_text,
+                    "type": "real_news"
+                }
+            else:
+                return {
+                    "text": "📰 عذراً، لا يمكن جلب الأخبار حالياً.\n\n💡 جرب الأسئلة المحلية مثل:\n• 'طلاب جامعة الملك سعود'\n• 'منتجات إلكترونية'\n• 'شركات في الرياض'",
+                    "type": "local_alternative"
+                }
+
+        # باقي الاستعلامات التي تحتاج إنترنت...
+        # ... (الكود السابق للعملات، كوفيد، الأسهم)
+
+        return None
+
+    except Exception as e:
+        print(f"❌ خطأ في الاستعلامات الذكية: {e}")
+        return None
+🔄 الآن أصلح دالة find_response الرئيسية:
+استبدل دالة find_response بهذا الكود المحسن:
+
+python
+def find_response(self, user_input):
+    """البحث عن الرد المناسب مع تحسين الفهم المنطقي"""
+
+    # تنظيف النص أولاً
+    user_input_clean = user_input.strip()
+    user_input_lower = user_input_clean.lower()
+
+    print(f"🔍 معالجة الرسالة: '{user_input_clean}'")
+
+    # 1. التحقق من الرسائل البسيطة أولاً (لا تحتاج إنترنت)
+    simple_responses = self.handle_simple_queries(user_input_clean)
+    if simple_responses:
+        return simple_responses
+
+    # 2. معالجة البيانات الخارجية (بعضها لا يحتاج إنترنت)
+    external_response = self.handle_external_data_queries(user_input_clean)
+    if external_response:
+        self.save_conversation(user_input_clean, external_response["text"], 0.90, 0.002)
+        return external_response
+
+    # 3. فقط الاستعلامات التي تحتاج إنترنت يتم فحصها
+    smart_response = self.handle_smart_queries(user_input_clean)
+    if smart_response:
+        self.save_conversation(user_input_clean, smart_response["text"], 0.95, 0.005)
+        return smart_response
+
+    # 4. استخدام الذكاء الاصطناعي مع تحسين العتبة
+    predicted_tag, confidence, response_time = self.predict_intent(user_input_clean)
+
+    # تقليل العتبة للحصول على ردود أكثر دقة
+    if confidence > 0.15 and predicted_tag:
+        response = self.get_response(predicted_tag)
+        if response:
+            # التأكد من أن الرد مناسب للسؤال
+            if self.is_response_relevant(user_input_lower, predicted_tag, confidence):
+                self.save_conversation(user_input_clean, response, confidence, response_time)
+                return {
+                    "text": response,
+                    "response": response,
+                    "confidence": confidence * 100,
+                    "response_time": response_time * 1000,
+                    "type": "ai_response"
+                }
+
+    # 5. ردود ذكية للأسئلة غير المفهومة
+    smart_defaults = [
+        f"🤔 لم أفهم سؤالك بالضبط. جرب أحد هذه الخيارات:\n\n✨ الأسئلة المحلية:\n• 'كم الساعة' - الوقت الحالي\n• 'طلاب هندسة' - بحث

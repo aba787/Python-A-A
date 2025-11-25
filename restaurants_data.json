@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "name": "مطعم القرية",
+    "name_en": "Al Village Restaurant",
+    "cuisine": "شرق أوسطي",
+    "cuisine_en": "Middle Eastern",
+    "rating": 4.5,
+    "price_range": "$$",
+    "city": "الرياض"
+  },
+  {
+    "id": 2,
+    "name": "بيتزا هت",
+    "name_en": "Pizza Hut",
+    "cuisine": "إيطالي",
+    "cuisine_en": "Italian",
+    "rating": 4.0,
+    "price_range": "$$",
+    "city": "جدة"
+  },
+  {
+    "id": 3,
+    "name": "سوشي سنتر",
+    "name_en": "Sushi Center",
+    "cuisine": "ياباني",
+    "cuisine_en": "Japanese",
+    "rating": 4.2,
+    "price_range": "$$$",
+    "city": "الدمام"
+  },
+  {
+    "id": 4,
+    "name": "برجر كنج",
+    "name_en": "Burger King",
+    "cuisine": "أمريكي",
+    "cuisine_en": "American",
+    "rating": 3.8,
+    "price_range": "$",
+    "city": "الرياض"
+  },
+  {
+    "id": 5,
+    "name": "مطعم صحي",
+    "name_en": "Healthy Eats",
+    "cuisine": "صحي",
+    "cuisine_en": "Healthy",
+    "rating": 4.7,
+    "price_range": "$$",
+    "city": "أبها"
+  }
+]

@@ -1,0 +1,563 @@
+🔍 الحل الشامل للمشكلة
+الخطوة 1: إنشاء ملف إصلاح كامل
+أنشئ ملف fixed_app.py جديد:
+
+python
+from flask import Flask, request, jsonify, render_template
+import sqlite3
+import os
+import logging
+import json
+from datetime import datetime
+
+# إعداد التسجيل المفصل
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+
+# إعدادات التطبيق
+app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
+
+# إنشاء مجلد التحميلات
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# تهيئة قاعدة البيانات
+def init_database():
+    """تهيئة قاعدة البيانات بشكل آمن"""
+    try:
+        conn = sqlite3.connect('medical_chatbot.db', check_same_thread=False)
+        cursor = conn.cursor()
+        
+        # جدول المحادثات
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_message TEXT NOT NULL,
+                bot_response TEXT NOT NULL,
+                language TEXT DEFAULT 'ar',
+                message_type TEXT DEFAULT 'text',
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # جدول المستخدمين
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT UNIQUE,
+                preferred_language TEXT DEFAULT 'ar',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+        logger.info("✅ قاعدة البيانات مهيأة بنجاح")
+        return True
+    except Exception as e:
+        logger.error(f"❌ خطأ في تهيئة قاعدة البيانات: {e}")
+        return False
+
+# وظائف المساعدة
+def get_db_connection():
+    """الحصول على اتصال قاعدة بيانات آمن"""
+    try:
+        conn = sqlite3.connect('medical_chatbot.db', check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except Exception as e:
+        logger.error(f"❌ خطأ في الاتصال بقاعدة البيانات: {e}")
+        return None
+
+def log_conversation(user_message, bot_response, language='ar'):
+    """تسجيل المحادثة في قاعدة البيانات"""
+    try:
+        conn = get_db_connection()
+        if conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO conversations (user_message, bot_response, language) VALUES (?, ?, ?)',
+                (user_message, bot_response, language)
+            )
+            conn.commit()
+            conn.close()
+            logger.info("✅ تم تسجيل المحادثة")
+    except Exception as e:
+        logger.error(f"❌ خطأ في تسجيل المحادثة: {e}")
+
+def detect_language(text):
+    """كشف لغة النص (مبسط)"""
+    arabic_chars = set('ء-ي')
+    if any(char in arabic_chars for char in text):
+        return 'ar'
+    return 'en'
+
+def generate_medical_response(user_message, language):
+    """توليد رد طبي ذكي"""
+    try:
+        message_lower = user_message.lower()
+        
+        # قاعدة معرفة طبية بسيطة
+        medical_knowledge = {
+            'ar': {
+                'صداع': 'للصداع ينصح بالراحة وشرب الماء. إذا استمر الصداع يرجى استشارة الطبيب.',
+                'حرارة': 'لخفض الحرارة استخدم خافض حرارة واستشر الطبيب إذا تجاوزت 38.5 درجة.',
+                'سعال': 'للسعال جرب المشروبات الدافئة والعسل. استشر الطبيب إذا استمر أكثر من أسبوع.',
+                'معدة': 'لآلام المعدة تجنب الأطعمة الدسمة واشرب النعناع. استشر الطبيب إذا تفاقمت الأعراض.',
+                'ضغط': 'لقياس الضغط استخدم جهاز قياس ضغط دقيق. للعلاج استشر الطبيب المختص.'
+            },
+            'en': {
+                'headache': 'For headaches, rest and hydration are recommended. Consult a doctor if it persists.',
+                'fever': 'To reduce fever, use antipyretics. Consult a doctor if it exceeds 38.5°C.',
+                'cough': 'For cough, try warm drinks and honey. See a doctor if it lasts more than a week.',
+                'stomach': 'For stomach pain, avoid fatty foods and drink mint tea. Consult a doctor if symptoms worsen.',
+                'pressure': 'Use an accurate blood pressure monitor. For treatment, consult a specialist doctor.'
+            }
+        }
+        
+        # البحث في قاعدة المعرفة
+        knowledge_base = medical_knowledge.get(language, {})
+        for keyword, response in knowledge_base.items():
+            if keyword in message_lower:
+                return response
+        
+        # ردود عامة
+        general_responses = {
+            'ar': [
+                "أنا مساعدك الطبي الذكي. يمكنني مساعدتك في استفسارات طبية عامة.",
+                "للاستشارات الطبية الدقيقة، يرجى دائمًا استشارة طبيب مختص.",
+                "يمكنني تقديم معلومات طبية عامة. للطوارئ الطبية اتصل بالرقم 911.",
+                "أفهم استفسارك الطبي. للرعاية الطبية الشاملة يرجى زيارة الطبيب."
+            ],
+            'en': [
+                "I'm your smart medical assistant. I can help with general medical inquiries.",
+                "For accurate medical advice, always consult a specialized doctor.",
+                "I can provide general medical information. For medical emergencies call 911.",
+                "I understand your medical inquiry. For comprehensive medical care please visit a doctor."
+            ]
+        }
+        
+        import random
+        responses = general_responses.get(language, general_responses['en'])
+        return random.choice(responses)
+        
+    except Exception as e:
+        logger.error(f"❌ خطأ في توليد الرد: {e}")
+        return "عذرًا، حدث خطأ في معالجة طلبك. يرجى المحاولة مرة أخرى."
+
+# المسارات الرئيسية
+@app.route('/')
+def home():
+    """الصفحة الرئيسية"""
+    return render_template('index.html')
+
+@app.route('/chat', methods=['POST'])
+def chat_endpoint():
+    """نقطة نهاية الدردشة الرئيسية"""
+    try:
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({'error': 'رسالة مطلوبة'}), 400
+        
+        user_message = data['message'].strip()
+        if not user_message:
+            return jsonify({'error': 'رسالة فارغة'}), 400
+        
+        logger.info(f"📨 رسالة المستخدم: {user_message}")
+        
+        # كشف اللغة
+        language = detect_language(user_message)
+        logger.info(f"🌐 اللغة المكتشفة: {language}")
+        
+        # توليد الرد
+        bot_response = generate_medical_response(user_message, language)
+        logger.info(f"🤖 رد البوت: {bot_response}")
+        
+        # تسجيل المحادثة
+        log_conversation(user_message, bot_response, language)
+        
+        return jsonify({
+            'response': bot_response,
+            'language': language,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ خطأ في /chat: {str(e)}")
+        return jsonify({
+            'error': 'حدث خطأ داخلي في الخادم',
+            'message': 'يرجى المحاولة مرة أخرى لاحقًا'
+        }), 500
+
+@app.route('/health')
+def health_check():
+    """فحص صحة التطبيق"""
+    try:
+        # فحص قاعدة البيانات
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'status': 'error', 'database': 'unavailable'}), 500
+        
+        cursor = conn.cursor()
+        cursor.execute('SELECT 1')
+        conn.close()
+        
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"❌ فحص الصحة فشل: {e}")
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e)
+        }), 500
+
+# معالجات الأخطاء
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'الصفحة غير موجودة'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"❌ خطأ 500: {error}")
+    return jsonify({
+        'error': 'خطأ داخلي في الخادم',
+        'message': 'نعمل على إصلاح المشكلة'
+    }), 500
+
+@app.errorhandler(Exception)
+def handle_exception(error):
+    logger.error(f"❌ خطأ غير متوقع: {error}")
+    return jsonify({
+        'error': 'حدث خطأ غير متوقع',
+        'message': 'يرجى المحاولة مرة أخرى'
+    }), 500
+
+if __name__ == '__main__':
+    print("🚀 بدء تشغيل Medical Chatbot...")
+    print("📊 جاري تهيئة قاعدة البيانات...")
+    
+    if init_database():
+        print("✅ تم تهيئة التطبيق بنجاح")
+        print("🌐 الخادم يعمل على: http://localhost:5000")
+        print("📋 فحص الصحة: http://localhost:5000/health")
+        
+        # تشغيل التطبيق
+        app.run(
+            debug=True,
+            host='0.0.0.0', 
+            port=5000,
+            use_reloader=True
+        )
+    else:
+        print("❌ فشل في تهيئة التطبيق")
+الخطوة 2: إنشاء مجلد القوالب وملف الواجهة
+أنشئ مجلد templates ثم ملف index.html بداخله:
+
+html
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المساعد الطبي الذكي</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .chat-container {
+            height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .user-message {
+            justify-content: flex-end;
+        }
+
+        .bot-message {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            line-height: 1.5;
+        }
+
+        .user-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .bot-bubble {
+            background: white;
+            color: #333;
+            border: 2px solid #e9ecef;
+            border-bottom-left-radius: 5px;
+        }
+
+        .input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 1.1em;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .message-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .send-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .send-button:active {
+            transform: translateY(0);
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 15px 20px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .error-message {
+            background: #ffe6e6;
+            color: #d63031;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .message-bubble {
+                max-width: 85%;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 المساعد الطبي الذكي</h1>
+            <p>مساعدك الشخصي للاستفسارات الطبية العامة</p>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="message bot-message">
+                <div class="message-bubble bot-bubble">
+                    👋 مرحباً! أنا المساعد الطبي الذكي. يمكنني مساعدتك في استفسارات طبية عامة. كيف يمكنني مساعدتك اليوم؟
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            🔄 جاري الكتابة...
+        </div>
+
+        <div class="input-container">
+            <input 
+                type="text" 
+                class="message-input" 
+                id="messageInput" 
+                placeholder="اكتب استفسارك الطبي هنا..."
+                maxlength="500"
+            >
+            <button class="send-button" onclick="sendMessage()">
+                إرسال
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        function addMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = `message-bubble ${isUser ? 'user-bubble' : 'bot-bubble'}`;
+            bubbleDiv.textContent = message;
+            
+            messageDiv.appendChild(bubbleDiv);
+            chatContainer.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showTyping() {
+            typingIndicator.style.display = 'block';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function hideTyping() {
+            typingIndicator.style.display = 'none';
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, true);
+            messageInput.value = '';
+            
+            // Show typing indicator
+            showTyping();
+            
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                hideTyping();
+                
+                if (response.ok) {
+                    addMessage(data.response);
+                } else {
+                    addMessage(`❌ خطأ: ${data.error || 'حدث خطأ غير متوقع'}`);
+                }
+                
+            } catch (error) {
+                hideTyping();
+                addMessage('❌ خطأ في الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
+                console.error('Error:', error);
+            }
+        }
+
+        // Allow sending with Enter key
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Focus on input when page loads
+        messageInput.focus();
+    </script>
+</body>
+</html>
+الخطوة 3: التشغيل الفوري
+شغل التطبيق مباشرة:
+
+bash
+python fixed_app.py
+الخطوة 4: التحقق من العمل
+افتح متصفحك واذهب إلى:
+
+text
+http://localhost:5000
+تحقق من صحة النظام:
+
+text
+http://localhost:5000/health
+✅ المميزات الجديدة في هذا الإصدار:
+معالجة أخطاء شاملة في كل وظيفة
+
+نظام تسجيل مفصل لرؤية الأخطاء بوضوح
+
+واجهة مستخدم متجاوبة وجميلة
+
+كشف لغة تلقائي (عربي/إنجليزي)
+
+قاعدة معرفة طبية مبدئية
+
+فحص صحة النظام للتأكد من العمل
+
+تصميم متجاوب يعمل على جميع الأجهزة

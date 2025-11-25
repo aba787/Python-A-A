@@ -1,0 +1,155 @@
+1) بنية المشروع (مختصر وقابل للتطبيق)
+project/
+├─ main.py                     # نقطة التشغيل — CLI / HTTP gateway
+├─ core/
+│  ├─ router.py                # توجيه الطلبات -> دوال المعالجة المناسبة
+│  ├─ responder.py             # منطق اختيار/صياغة الردود (find_response)
+│  ├─ medical.py               # واجهات استعلامات طبية، DB lookup, templates
+│  ├─ ai_client.py             # كل تواصل مع OpenAI / نموذج محلي + retry
+│  └─ utils.py                 # language detection, validators, logging
+├─ tests/
+│  ├─ test_medical.py
+│  └─ test_language.py
+├─ requirements.txt
+└─ Dockerfile
+
+2) مبادئ التنفيذ (بخطوات سريعة)
+
+فصل المسؤوليات — تواصل مع AI داخل ai_client.py فقط. كل شيء آخر يستخدم هذه الواجهة.
+
+فرض لغة الرد — أرسل رسالة system واضحة تطلب اللغة (مثال: "Always reply in English unless user explicitly asks Arabic").
+
+اكتشاف لغة المستخدم — لو العميل يطلب ترجمة أو يكتب بالعربي، احترمت الطلب. خلاف ذلك اجبر الإنجلش.
+
+قوالب طبية آمنة — اجعل الرد الطبي يتضمن: ملخص قصير، موانع/تحذيرات، نصيحة استشارة مختص، مرجع/مصدر إن وُجد.
+
+التحقق من سلامة المخرجات — لو استجابة AI تتضمن توصية دوائية، ضع علامة تحذير واطلب تأكيد من مختص (non-actionable fallback).
+
+Fallback — لو مفتاح OpenAI غير متاح: استخدم نموذج محلي أو قاعدة إجابات ثابتة (canned responses).
+
+3) كود عملي (Python) — مختصر لكن قابل للاستخدام فوراً
+# ai_client.py
+import os
+import time
+import logging
+import openai    # pip install openai
+
+logger = logging.getLogger(__name__)
+
+SYSTEM_ENGLISH = "You are a concise, professional assistant. ALWAYS answer in English unless the user explicitly requests another language."
+
+class AIClient:
+    def __init__(self, api_key=None, model="gpt-4o-mini"):
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        openai.api_key = self.api_key
+        self.model = model
+
+    def get_response(self, user_input, force_language="en", max_retries=2, **kwargs):
+        """
+        force_language: "en" or "ar" or None
+        """
+        system_msg = SYSTEM_ENGLISH if force_language == "en" else (
+                     "You are a concise assistant. Answer in Arabic." if force_language == "ar" else "You are a concise assistant.")
+        messages = [
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_input}
+        ]
+        for attempt in range(max_retries+1):
+            try:
+                resp = openai.ChatCompletion.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0.2,
+                    max_tokens=500,
+                    **kwargs
+                )
+                text = resp["choices"][0]["message"]["content"]
+                return text
+            except Exception as e:
+                logger.exception("AI request failed attempt %s: %s", attempt, e)
+                time.sleep(1 + attempt * 2)
+        # fallback canned answer
+        return "Sorry, I can't reach the AI right now. Try again later."
+
+
+# medical.py
+from typing import Dict, Optional
+from utils import detect_language
+
+MED_DB = {
+    "paracetamol": {
+        "uses": "Pain relief and fever reducer.",
+        "dose_adult": "500-1000 mg every 4-6 hours, max 3g/day (check local guidelines).",
+        "warnings": "Avoid with severe liver disease; check interactions."
+    },
+    "ibuprofen": {
+        "uses": "NSAID for pain, inflammation, fever.",
+        "dose_adult": "200-400 mg every 4-6 hours, max 1200 mg/day OTC.",
+        "warnings": "Avoid with peptic ulcer, kidney disease; may increase bleeding."
+    }
+}
+
+def basic_medical_response(user_input: str) -> str:
+    # بسيط: يطابق كلمات مفتاحية في الاستعلام مع قاعدة بسيطة
+    q = user_input.lower()
+    if "paracetamol" in q or "باراسيتامول" in q or "acetaminophen" in q:
+        med = MED_DB["paracetamol"]
+    elif "ibuprofen" in q or "إيبوبروفين" in q:
+        med = MED_DB["ibuprofen"]
+    elif " headache" in q or "صداع" in q:
+        # generic suggested meds
+        return ("Common OTC options for headache include paracetamol (acetaminophen) and ibuprofen. "
+                "Dosage, contraindications, and interactions vary — consult a doctor or pharmacist.")
+    else:
+        return ("I can provide info on common OTC meds like paracetamol and ibuprofen. "
+                "Please specify the medicine name or symptoms.")
+    return (f"{med['uses']}\nDosage (adult): {med['dose_adult']}\nWarnings: {med['warnings']}\n"
+            "⚠️ This is informational only — consult a healthcare professional before taking any medication.")
+
+
+# responder.py
+from ai_client import AIClient
+from medical import basic_medical_response
+from utils import detect_language, wants_english
+
+ai = AIClient()
+
+def find_response(user_input: str) -> str:
+    # 1) quick intent: medical keywords
+    low = user_input.lower()
+    if any(k in low for k in ["دواء", "باراسيتامول", "صداع", "ibuprofen", "paracetamol", "headache"]):
+        # use deterministic template first
+        base = basic_medical_response(user_input)
+        # Ask AI to expand but force language based on user preference
+        force_lang = "en" if wants_english(user_input) else "ar" if detect_language(user_input) == "ar" else "en"
+        ai_expand = ai.get_response(f"Expand and format this answer for a user: {base}\nKeep it concise and include a clear safety disclaimer.", force_language=force_lang)
+        return ai_expand
+    # 2) simple queries (time, greeting)
+    if "what time" in low or "الوقت" in low or "كم الساعة" in low:
+        from datetime import datetime
+        return datetime.utcnow().strftime("UTC time: %Y-%m-%d %H:%M:%S")
+    # 3) default: forward to AI and prefer English unless user asks Arabic
+    force_lang = "en" if wants_english(user_input) else "ar" if detect_language(user_input) == "ar" else "en"
+    return ai.get_response(user_input, force_language=force_lang)
+
+# utils.py
+def detect_language(text: str) -> str:
+    # very simple heuristic: Arabic letters -> "ar"
+    for ch in text:
+        if '\u0600' <= ch <= '\u06FF':
+            return "ar"
+    return "en"
+
+def wants_english(text: str) -> bool:
+    # if user explicitly asked "in English" or "بالانجليزي" prefer accordingly
+    if "english" in text.lower() or "بالانجليزي" in text.lower() or "in english" in text.lower():
+        return True
+    return False
+
+4) إصلاح مشكلة "البوت لا يرد بالإنجليزي"
+
+السبب الشائع ــ وحل سريع:
+
+سبب: نظام الرسائل (system prompt) أو رسالة البداية تُطالب بالرد بالعربية، أو الكود يكتشف اللغة بشكل خاطئ، أو ليس هناك أي قيود على اللغة في طلب الـ API فالموديل يرد بلغة المستخدم.
+
+حل مباشر وفعال: أضف رسالة system في كل طلب ChatCompletion تطلب صراحة: Always respond in English unless user explicitly requests Arabic. — هذا يضمن أن الموديل يُجبر عملياً على الإنجلش. مثال في ai_client.get_response أعلاه.

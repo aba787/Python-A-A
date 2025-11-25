@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 المساعد الذكي</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 95%;
+            max-width: 800px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .chat-header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .status-bar {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 20px;
+            font-size: 0.8rem;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            animation: messageAppear 0.5s ease-out;
+        }
+
+        @keyframes messageAppear {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .user-message {
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .bot-message {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .user-bubble {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+        }
+
+        .bot-bubble {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+            color: white;
+        }
+
+        .message-info {
+            font-size: 0.75rem;
+            margin-top: 5px;
+            opacity: 0.8;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .intent-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+        }
+
+        .confidence-bar {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            height: 4px;
+            width: 50px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            transition: width 1s ease;
+        }
+
+        .typing-indicator {
+            display: none;
+            justify-content: flex-end;
+            margin-bottom: 15px;
+        }
+
+        .typing-bubble {
+            background: #e9ecef;
+            color: #6c757d;
+            padding: 12px 18px;
+            border-radius: 18px;
+            font-style: italic;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+            font-family: inherit;
+        }
+
+        .message-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+        }
+
+        .send-button:active {
+            transform: scale(0.95);
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 30px;
+            color: #6c757d;
+        }
+
+        .welcome-message h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .feature-card {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        /* styles for image upload and OCR */
+        .image-upload-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .upload-button {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            color: black;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .upload-button:hover {
+            transform: scale(1.03);
+        }
+
+        .upload-button:active {
+            transform: scale(0.97);
+        }
+
+        .upload-button input[type="file"] {
+            display: none;
+        }
+
+        .ocr-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: #495057;
+            text-align: right;
+            white-space: pre-wrap; /* preserve line breaks from OCR */
+        }
+
+
+        /* التجاوب مع الأجهزة المختلفة */
+        @media (max-width: 768px) {
+            .chat-container {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            .message-bubble {
+                max-width: 85%;
+                font-size: 0.9rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* تأثيرات إضافية */
+        .loading-dots {
+            display: inline-block;
+        }
+
+        .loading-dots::after {
+            content: '';
+            animation: loadingDots 1.5s infinite;
+        }
+
+        @keyframes loadingDots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60% { content: '...'; }
+            80%, 100% { content: ''; }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🤖 المساعد الذكي</h1>
+            <p>شات بوت ذكي متطور مع دعم الوسائط</p>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="welcome-message">
+                <h2>🌟 مرحباً بك!</h2>
+                <p>أنا شات بوت ذكي متطور، أستطيع مساعدتك في فهم النصوص والصور.</p>
+                <p style="margin-top: 10px; font-weight: bold; color: #667eea;">
+                    جرب تحميل صورة وصفة طبية وسأحاول قراءتها لك!
+                </p>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <h3>🧠 الذكاء الاصطناعي</h3>
+                        <p>فهم وتصنيف النصوص</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🖼️ معالجة الصور</h3>
+                        <p>قراءة الوصفات الطبية</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🌍 متعدد اللغات</h3>
+                        <p>عربي + إنجليزي</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>⚡ سريع</h3>
+                        <p>استجابة فورية</p>
+                    </div>
+                </div>
+
+                <p style="margin-top: 20px; font-style: italic;">
+                    أو جرب كتابة: "مرحبا" أو "help" أو "ما هي عاصمة فرنسا؟"
+                </p>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-bubble">
+                🤖 يكتب الرد<span class="loading-dots"></span>
+            </div>
+        </div>
+
+        <!-- Image Upload Area -->
+        <div class="image-upload-area">
+            <button class="upload-button" id="uploadButton">
+                <input type="file" id="imageUploadInput" accept="image/*">
+                <label for="imageUploadInput">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-upload" viewBox="0 0 16 16">
+                        <path d="M.5 9.9c.69-.685 1.695-.685 2.39 0L6 11.698V3.5a.5.5 0 0 1 1 0v8.198l2.62-2.62c.695-.685 1.695-.685 2.39 0l.707.706a2.47 2.47 0 0 1 0 3.505l-5.248 5.248a2.47 2.47 0 0 1-3.505 0L.5 14.403a2.47 2.47 0 0 1 0-3.505l.706-.705z"/>
+                        <path d="M10.028 2.151c-.565-.566-1.477-.566-2.043 0l-.165.165a2.47 2.47 0 0 0 0 3.505l2.477 2.477a2.47 2.47 0 0 0 3.505 0l.165-.165a2.47 2.47 0 0 0 0-3.505l-2.477-2.477z"/>
+                    </svg>
+                    تحميل صورة
+                </label>
+            </button>
+        </div>
+
+        <div id="ocrResultArea" class="ocr-result" style="display: none;"></div>
+
+
+        <div class="input-area">
+            <input 
+                type="text" 
+                class="message-input" 
+                id="messageInput" 
+                placeholder="اكتب رسالتك هنا..."
+                autocomplete="off"
+            >
+            <button class="send-button" id="sendButton" onclick="sendMessage()">
+                إرسال 🚀
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let messageCount = 0;
+
+        function addMessage(text, isUser = false, data = null) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+
+            let messageContent = `
+                <div class="message-bubble ${isUser ? 'user-bubble' : 'bot-bubble'}">
+                    ${text}
+            `;
+
+            if (!isUser && data) {
+                messageContent += `
+                    <div class="message-info">
+                        <span class="intent-badge">🎯 ${data.intent}</span>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${data.confidence}%"></div>
+                        </div>
+                        <span>${data.confidence}%</span>
+                        <span>🌍 ${data.language}</span>
+                    </div>
+                `;
+            }
+
+            messageContent += '</div>';
+            messageDiv.innerHTML = messageContent;
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            messageCount++;
+
+            // إخفاء رسالة الترحيب بعد أول رسالة
+            if (messageCount === 1) {
+                const welcome = chatMessages.querySelector('.welcome-message');
+                if (welcome) {
+                    welcome.style.animation = 'messageAppear 0.5s ease-out reverse';
+                    setTimeout(() => welcome.style.display = 'none', 500);
+                }
+            }
+        }
+
+        function showTyping() {
+            document.getElementById('typingIndicator').style.display = 'flex';
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.scrollTop = chatMessages.scrollHeight + 100;
+        }
+
+        function hideTyping() {
+            document.getElementById('typingIndicator').style.display = 'none';
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+            const message = input.value.trim();
+
+            if (!message) {
+                input.style.animation = 'shake 0.5s ease-in-out';
+                setTimeout(() => input.style.animation = '', 500);
+                return;
+            }
+
+            // تعطيل الإدخال
+            input.disabled = true;
+            sendButton.disabled = true;
+            sendButton.textContent = 'جاري الإرسال...';
+
+            // إضافة رسالة المستخدم
+            addMessage(message, true);
+            input.value = '';
+
+            // إظهار مؤشر الكتابة
+            showTyping();
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+
+                // إخفاء مؤشر الكتابة
+                hideTyping();
+
+                // تأخير طبيعي
+                setTimeout(() => {
+                    addMessage(data.reply, false, {
+                        intent: data.intent,
+                        confidence: data.confidence,
+                        language: data.language
+                    });
+                }, 300 + Math.random() * 700);
+
+            } catch (error) {
+                hideTyping();
+                addMessage('❌ عذراً، حدث خطأ في الاتصال. تأكد أن الخادم يعمل.', false);
+                console.error('خطأ:', error);
+            }
+
+            // إعادة تفعيل الإدخال
+            input.disabled = false;
+            sendButton.disabled = false;
+            sendButton.textContent = 'إرسال 🚀';
+            input.focus();
+        }
+
+        // Function to handle image upload and OCR
+        document.getElementById('imageUploadInput').addEventListener('change', async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const imagePreview = document.createElement('img');
+                imagePreview.src = e.target.result;
+                imagePreview.style.maxWidth = '200px'; // Optional: display a preview
+                imagePreview.style.display = 'block';
+                imagePreview.style.margin = '10px auto';
+
+                // Clear previous OCR result if any
+                document.getElementById('ocrResultArea').style.display = 'none';
+                document.getElementById('ocrResultArea').textContent = '';
+                
+                // Show typing indicator while processing
+                showTyping();
+                
+                // Display the image preview in chat messages
+                const chatMessages = document.getElementById('chatMessages');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message user-message'; // Display image as user message
+                messageDiv.appendChild(imagePreview);
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    const response = await fetch('/ocr', { // Assuming you have an /ocr endpoint
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    
+                    hideTyping();
+
+                    if (result.text) {
+                        // Display OCR result in a dedicated area below the input
+                        const ocrResultArea = document.getElementById('ocrResultArea');
+                        ocrResultArea.textContent = result.text;
+                        ocrResultArea.style.display = 'block';
+                        
+                        // Optionally, send the extracted text to the chat bot
+                        addMessage(result.text, false, {
+                            intent: 'ocr_result', // Example intent
+                            confidence: 100,     // Example confidence
+                            language: 'auto'     // Example language
+                        });
+                    } else {
+                        addMessage('❌ فشلت قراءة النص من الصورة.', false);
+                    }
+
+                } catch (error) {
+                    hideTyping();
+                    addMessage('❌ عذراً، حدث خطأ أثناء معالجة الصورة.', false);
+                    console.error('OCR Error:', error);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+
+
+        // الأحداث
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // تأثير الهز للأخطاء
+        const shakeKeyframes = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-5px); }
+                75% { transform: translateX(5px); }
+            }
+        `;
+
+        const styleSheet = document.createElement('style');
+        styleSheet.textContent = shakeKeyframes;
+        document.head.appendChild(styleSheet);
+
+        // تركيز تلقائي
+        window.addEventListener('load', function() {
+            document.getElementById('messageInput').focus();
+        });
+    </script>
+</body>
+</html>

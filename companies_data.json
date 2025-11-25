@@ -1,0 +1,47 @@
+[
+  {
+    "id": 1,
+    "name": "أرامكو السعودية",
+    "name_en": "Saudi Aramco",
+    "sector": "نفط وغاز",
+    "sector_en": "Oil & Gas",
+    "employees": 70000,
+    "city": "الظهران"
+  },
+  {
+    "id": 2,
+    "name": "مصرف الراجحي",
+    "name_en": "Al Rajhi Bank",
+    "sector": "خدمات مالية",
+    "sector_en": "Financial Services",
+    "employees": 10000,
+    "city": "الرياض"
+  },
+  {
+    "id": 3,
+    "name": "شركة الاتصالات السعودية",
+    "name_en": "STC",
+    "sector": "اتصالات",
+    "sector_en": "Telecommunications",
+    "employees": 18000,
+    "city": "الرياض"
+  },
+  {
+    "id": 4,
+    "name": "سابك",
+    "name_en": "SABIC",
+    "sector": "بتروكيماويات",
+    "sector_en": "Petrochemicals",
+    "employees": 35000,
+    "city": "الرياض"
+  },
+  {
+    "id": 5,
+    "name": "بنده",
+    "name_en": "Panda Retail Company",
+    "sector": "تجزئة",
+    "sector_en": "Retail",
+    "employees": 25000,
+    "city": "جدة"
+  }
+]

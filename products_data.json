@@ -1,0 +1,57 @@
+[
+  {
+    "id": 101,
+    "name": "لابتوب HP",
+    "name_en": "HP Laptop",
+    "price": 2500,
+    "category": "إلكترونيات",
+    "category_en": "Electronics",
+    "stock": 15,
+    "brand": "HP",
+    "rating": 4.5
+  },
+  {
+    "id": 102,
+    "name": "هاتف iPhone",
+    "name_en": "iPhone",
+    "price": 3200,
+    "category": "إلكترونيات",
+    "category_en": "Electronics",
+    "stock": 8,
+    "brand": "Apple",
+    "rating": 4.8
+  },
+  {
+    "id": 103,
+    "name": "كتاب البرمجة",
+    "name_en": "Programming Book",
+    "price": 45,
+    "category": "كتب",
+    "category_en": "Books",
+    "stock": 25,
+    "brand": "Local Pub",
+    "rating": 4.0
+  },
+  {
+    "id": 104,
+    "name": "ساعة ذكية",
+    "name_en": "Smart Watch",
+    "price": 800,
+    "category": "إلكترونيات",
+    "category_en": "Electronics",
+    "stock": 12,
+    "brand": "Samsung",
+    "rating": 4.2
+  },
+  {
+    "id": 105,
+    "name": "سماعات بلوتوث",
+    "name_en": "Bluetooth Headphones",
+    "price": 150,
+    "category": "إكسسوارات",
+    "category_en": "Accessories",
+    "stock": 30,
+    "brand": "Sony",
+    "rating": 4.7
+  }
+]

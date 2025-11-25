@@ -1,0 +1,239 @@
+الخطوة 1: إضافة APIs حقيقية
+أضف هذا الكود في الأعلى:
+
+python
+import openai
+import requests
+import os
+from typing import Dict, List
+
+class RealAIMedicalChat:
+    def __init__(self):
+        self.setup_apis()
+    
+    def setup_apis(self):
+        """إعداد APIs الذكاء الاصطناعي"""
+        # يمكنك الحصول على API keys مجانية من هذه المواقع
+        self.apis = {
+            "openai": os.getenv('OPENAI_API_KEY'),
+            "google_medical": os.getenv('GOOGLE_MEDICAL_API_KEY'),
+            "wolfram_alpha": os.getenv('WOLFRAM_ALPHA_API_KEY')
+        }
+    
+    def get_chatgpt_response(self, user_input: str) -> Dict:
+        """الحصول على رد من ChatGPT حقيقي"""
+        try:
+            # إذا كان لديك OpenAI API key
+            if self.apis["openai"]:
+                openai.api_key = self.apis["openai"]
+                
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "أنت مساعد طبي ذكي متخصص. قدم معلومات طبية دقيقة بطريقة مبسطة مع تحذيرات السلامة."},
+                        {"role": "user", "content": user_input}
+                    ],
+                    max_tokens=500,
+                    temperature=0.7
+                )
+                
+                return {
+                    "text": response.choices[0].message.content,
+                    "source": "ChatGPT API",
+                    "confidence": 0.95
+                }
+            
+            # إذا لم يكن هناك API key، استخدم بدائل مجانية
+            else:
+                return self.get_free_ai_response(user_input)
+                
+        except Exception as e:
+            print(f"❌ خطأ في ChatGPT: {e}")
+            return self.get_free_ai_response(user_input)
+    
+    def get_free_ai_response(self, user_input: str) -> Dict:
+        """استخدام بدائل AI مجانية"""
+        try:
+            # استخدام Hugging Face models مجانية
+            API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large"
+            headers = {"Authorization": "Bearer hf_your_token_here"}  # يمكنك الحصول على token مجاني
+            
+            payload = {
+                "inputs": f"كمساعد طبي: {user_input}",
+                "parameters": {"max_length": 300}
+            }
+            
+            response = requests.post(API_URL, headers=headers, json=payload)
+            
+            if response.status_code == 200:
+                result = response.json()
+                return {
+                    "text": result[0]['generated_text'],
+                    "source": "Hugging Face AI",
+                    "confidence": 0.85
+                }
+            else:
+                # إذا فشل كل شيء، استخدم نموذج محلي بسيط
+                return self.get_smart_fallback(user_input)
+                
+        except Exception as e:
+            print(f"❌ خطأ في AI المجاني: {e}")
+            return self.get_smart_fallback(user_input)
+    
+    def get_web_medical_info(self, query: str) -> Dict:
+        """جلب معلومات طبية من الويب"""
+        try:
+            # استخدام Wikipedia API للمعلومات الطبية
+            url = f"https://ar.wikipedia.org/api/rest_v1/page/summary/{query}"
+            response = requests.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "text": data.get('extract', 'لم أجد معلومات كافية.'),
+                    "source": "ويكيبيديا",
+                    "url": data.get('content_urls', {}).get('desktop', {}).get('page', ''),
+                    "confidence": 0.80
+                }
+        
+        except Exception as e:
+            print(f"❌ خطأ في جلب المعلومات: {e}")
+        
+        return None
+    
+    def get_drug_info_from_web(self, drug_name: str) -> Dict:
+        """جلب معلومات دواء من مصادر طبية"""
+        try:
+            # استخدام APIs طبية مجانية
+            sources = [
+                f"https://api.fda.gov/drug/label.json?search=openfda.brand_name:{drug_name}",
+                f"https://clinicaltrials.gov/api/query/study?expr={drug_name}&fmt=json"
+            ]
+            
+            for source in sources:
+                try:
+                    response = requests.get(source, timeout=8)
+                    if response.status_code == 200:
+                        data = response.json()
+                        # معالجة البيانات حسب مصدر API
+                        return self.parse_drug_data(data, drug_name)
+                except:
+                    continue
+        
+        except Exception as e:
+            print(f"❌ خطأ في معلومات الدواء: {e}")
+        
+        return None
+    
+    def parse_drug_data(self, data: Dict, drug_name: str) -> Dict:
+        """تحليل بيانات الدواء"""
+        # هذه دالة لتحليل البيانات حسب مصدر API
+        # يمكن تخصيصها حسب كل API
+        return {
+            "text": f"معلومات عن {drug_name} من مصادر طبية موثوقة",
+            "source": "مصادر طبية",
+            "confidence": 0.75
+        }
+    
+    def get_smart_fallback(self, user_input: str) -> Dict:
+        """رد ذكي عندما تفشل APIs"""
+        # تحليل السؤال وتقديم رد ذكي
+        medical_keywords = {
+            'دواء': 'يمكنني مساعدتك في معلومات الأدوية. جرب: "معلومات عن باراسيتامول" أو "استخدامات إيبوبروفين"',
+            'علاج': 'للعثور على علاجات، اذكر العرض بالتحديد مثل: "علاج الصداع" أو "علاج السعال"',
+            'اعراض': 'لتحليل الأعراض، اذكرها بوضوح مثل: "أعراض الإنفلونزا" أو "أعراض الحساسية"',
+            'جرعة': 'للجرعات، اذكر اسم الدواء مثل: "جرعة باراسيتامول" أو "كم مرة آخذ إيبوبروفين"'
+        }
+        
+        for keyword, response in medical_keywords.items():
+            if keyword in user_input.lower():
+                return {
+                    "text": f"🔍 {response}\n\n💡 لمعلومات أكثر دقة، أحتاج اتصال بـ APIs طبية متخصصة.",
+                    "source": "النظام الطبي الذكي",
+                    "confidence": 0.70
+                }
+        
+        return {
+            "text": f"🤖 أنا مساعد طبي ذكي. لمساعدتك بشكل أفضل:\n\n💊 اسأل عن أدوية محددة\n🤒 اذكر الأعراض بوضوح\n💊 استفسر عن الجرعات والاستخدامات\n\n💡 مثال: 'معلومات عن دواء باراسيتامول' أو 'علاج الصداع'",
+            "source": "المساعد الطبي",
+            "confidence": 0.65
+        }
+الخطوة 2: تحديث النظام الرئيسي
+استبدل class InteractiveChatBot بهذا الإصدار الذكي:
+
+python
+class SmartMedicalChatBot:
+    def __init__(self):
+        self.name = "🩺 المساعد الطبي الذكي"
+        self.ai_medical = RealAIMedicalChat()
+        self.setup_database()
+    
+    def setup_database(self):
+        """إعداد قاعدة البيانات"""
+        conn = sqlite3.connect('smart_medical.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS medical_conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_query TEXT NOT NULL,
+                ai_response TEXT NOT NULL,
+                response_source TEXT,
+                confidence REAL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+    
+    def chat(self, user_input: str) -> Dict:
+        """المحادثة الطبية الذكية"""
+        print(f"🧠 معالجة السؤال الطبي: {user_input}")
+        
+        # 1. محاولة استخدام الذكاء الاصطناعي الحقيقي أولاً
+        ai_response = self.ai_medical.get_chatgpt_response(user_input)
+        if ai_response and ai_response.get('confidence', 0) > 0.6:
+            self.save_conversation(user_input, ai_response)
+            return ai_response
+        
+        # 2. محاولة جلب معلومات من الويب
+        web_info = self.ai_medical.get_web_medical_info(user_input)
+        if web_info:
+            self.save_conversation(user_input, web_info)
+            return web_info
+        
+        # 3. معلومات الأدوية من الويب
+        if any(word in user_input.lower() for word in ['دواء', 'دوا', 'medicine', 'drug']):
+            drug_info = self.ai_medical.get_drug_info_from_web(self.extract_drug_name(user_input))
+            if drug_info:
+                self.save_conversation(user_input, drug_info)
+                return drug_info
+        
+        # 4. رد ذكي
+        fallback = self.ai_medical.get_smart_fallback(user_input)
+        self.save_conversation(user_input, fallback)
+        return fallback
+    
+    def extract_drug_name(self, text: str) -> str:
+        """استخراج اسم الدواء من النص"""
+        common_drugs = ['باراسيتامول', 'إيبوبروفين', 'أموكسيسيلين', 'أوميبرازول', 'سيتريزين']
+        
+        for drug in common_drugs:
+            if drug in text:
+                return drug
+        
+        return text.split()[-1]  # آخر كلمة كمحاولة
+    
+    def save_conversation(self, user_query: str, response: Dict):
+        """حفظ المحادثة"""
+        conn = sqlite3.connect('smart_medical.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO medical_conversations (user_query, ai_response, response_source, confidence)
+            VALUES (?, ?, ?, ?)
+        ''', (user_query, response['text'], response.get('source', 'unknown'), response.get('confidence', 0.0)))
+        
+        conn.commit()
+        conn.close()

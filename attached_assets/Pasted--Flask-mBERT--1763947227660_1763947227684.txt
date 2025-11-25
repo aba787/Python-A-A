@@ -1,0 +1,372 @@
+# مشروع شات بوت متعدد اللغات (Flask + mBERT) — جاهز للتسليم
+
+> نسخة سريعة، عملية، وتسليم اليوم. المشروع يعمل محلياً بدون الحاجة إلى OpenAI أو رصيد.
+
+---
+
+## نظرة سريعة (الافتراضات التي اخترتها)
+
+* واجهة: **Flask** (صفحة HTML بسيطة + JS لطلب /chat)
+* اللغة: **عربية وإنجليزية** (UI وردود)
+* نموذج الـ NLP: **mBERT (huggingface/bert-base-multilingual-cased)** مخصّص لتصنيف النوايا (intent classification)
+* ردود: **قواعدية (rule-based)** مرتبطة بنتيجة التصنيف — هذا مناسب لأهداف أكاديمية وتسليم اليوم.
+
+---
+
+## ما الذي أدرجته في المشروع (قابل للنسخ/اللصق)
+
+1. `main.py` — خادم Flask، صفحات الواجهة، ونقطة النهاية `/chat`.
+2. `responder.py` — تحميل الموديل (inference-only)، تصنيف النية، واختيار الرد.
+3. `train.py` — سكربت تدريب بسيط باستخدام Transformers (HuggingFace) لعمل fine-tune لمهمة التصنيف.
+4. `requirements.txt` — كل الحزم المطلوبة.
+5. `data/sample_dataset.csv` — مثال صغير للبيانات (عربي + إنجليزي) بصيغة CSV.
+6. `templates/index.html` — واجهة المستخدم (عربي RTL مع دعم إنجليزي داخل النص).
+7. `README.md` — تعليمات التشغيل والتسليم.
+8. `report_template.md` — قالب التقرير المطلوب للتسليم.
+
+---
+
+> **ملاحظة مهمة:** السكربت `train.py` يحتاج GPU لتسريع التدريب — لكنه يعمل على CPU لبيانات صغيرة (لكن سيأخذ وقت). للتسليم الأكاديمي: يمكنك تدريب لعدد قليل من epoch للحصول على نموذج بسيط وتضمين نتائج الاختبار في التقرير.
+
+---
+
+## الملفات (محتوى كامل — انسخوا كل ملف إلى مشروعكم)
+
+### `requirements.txt`
+
+```
+flask==2.2.5
+torch==2.1.0
+transformers==4.34.0
+datasets==2.12.0
+scikit-learn==1.2.2
+pandas==2.2.3
+numpy==1.26.4
+sentencepiece==0.1.99
+uvicorn==0.22.0
+python-dotenv==1.0.0
+```
+
+---
+
+### `data/sample_dataset.csv`
+
+```
+text,lang,intent
+"Hello, I want to know my order status","en","order_status"
+"السلام عليكم، وين طلبي؟","ar","order_status"
+"I want a refund","en","refund"
+"أبي استرجاع فلوس","ar","refund"
+"What's the product warranty?","en","product_info"
+"كم فترة الضمان؟","ar","product_info"
+"Hi","en","greeting"
+"مرحبا","ar","greeting"
+"My product is broken","en","complaint"
+"المنتج خربان","ar","complaint"
+```
+
+---
+
+### `train.py` — تدريب سريع (fine-tune) لمهمة التصنيف
+
+```python
+# train.py
+import os
+import pandas as pd
+from datasets import Dataset
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments, Trainer
+import numpy as np
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+
+MODEL_NAME = "bert-base-multilingual-cased"
+OUTPUT_DIR = "saved_model"
+
+# 1) تحميل البيانات
+df = pd.read_csv("data/sample_dataset.csv")
+# map labels to ints
+labels = sorted(df['intent'].unique())
+label2id = {l:i for i,l in enumerate(labels)}
+id2label = {i:l for l,i in label2id.items()}
+df['label'] = df['intent'].map(label2id)
+
+# 2) تجهيز Dataset
+dataset = Dataset.from_pandas(df[['text','label']])
+train_test = dataset.train_test_split(test_size=0.2, seed=42)
+
+# 3) Tokenizer + model
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=len(labels))
+
+# tokenization function
+def preprocess(batch):
+    return tokenizer(batch['text'], truncation=True, padding='max_length', max_length=128)
+
+train_dataset = train_test['train'].map(preprocess, batched=True)
+eval_dataset = train_test['test'].map(preprocess, batched=True)
+
+train_dataset.set_format(type='torch', columns=['input_ids','attention_mask','label'])
+eval_dataset.set_format(type='torch', columns=['input_ids','attention_mask','label'])
+
+# 4) metrics
+
+def compute_metrics(p):
+    preds = np.argmax(p.predictions, axis=1)
+    precision, recall, f1, _ = precision_recall_fscore_support(p.label_ids, preds, average='weighted')
+    acc = accuracy_score(p.label_ids, preds)
+    return {"accuracy": acc, "precision": precision, "recall": recall, "f1": f1}
+
+# 5) TrainingArguments
+training_args = TrainingArguments(
+    output_dir=OUTPUT_DIR,
+    num_train_epochs=3,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    evaluation_strategy="epoch",
+    save_strategy="epoch",
+    logging_strategy="epoch",
+    load_best_model_at_end=True,
+    seed=42
+)
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
+    compute_metrics=compute_metrics
+)
+
+trainer.train()
+trainer.save_model(OUTPUT_DIR)
+# save label maps
+import json
+with open(os.path.join(OUTPUT_DIR,'label2id.json'),'w',encoding='utf-8') as f:
+    json.dump(label2id,f,ensure_ascii=False,indent=2)
+with open(os.path.join(OUTPUT_DIR,'id2label.json'),'w',encoding='utf-8') as f:
+    json.dump(id2label,f,ensure_ascii=False,indent=2)
+print('Training done. Model saved to', OUTPUT_DIR)
+```
+
+---
+
+### `responder.py` — تحميل النموذج واستخدامه لاستنتاج النية ثم اختيار الرد
+
+```python
+# responder.py
+import json
+import os
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
+
+MODEL_DIR = os.getenv('MODEL_DIR', 'saved_model')
+
+class ChatResponder:
+    def __init__(self):
+        # load label maps
+        with open(os.path.join(MODEL_DIR,'label2id.json'),'r',encoding='utf-8') as f:
+            self.label2id = json.load(f)
+        with open(os.path.join(MODEL_DIR,'id2label.json'),'r',encoding='utf-8') as f:
+            self.id2label = json.load(f)
+
+        self.tokenizer = AutoTokenizer.from_pretrained('bert-base-multilingual-cased')
+        self.model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR)
+        self.model.eval()
+
+        # simple rule-based replies (editable)
+        self.replies = {
+            'order_status': {
+                'en': 'Please provide your order number so we can check the status.',
+                'ar': 'أرجو تزويدنا برقم الطلب لنتمكن من التحقق.'
+            },
+            'refund': {
+                'en': 'Refunds are processed within 3-5 business days. Please share your order id.',
+                'ar': 'يتم معالجة طلبات الاسترجاع خلال 3-5 أيام عمل. الرجاء تزويدنا برقم الطلب.'
+            },
+            'product_info': {
+                'en': 'You can find product warranty and details on the product page.',
+                'ar': 'يمكنك الاطلاع على معلومات الضمان وصفحة المنتج.'
+            },
+            'greeting': {
+                'en': 'Hello! How can I assist you today?',
+                'ar': 'مرحباً! كيف أستطيع مساعدتك؟'
+            },
+            'complaint': {
+                'en': 'I'm sorry to hear that. Please provide details and we will escalate.',
+                'ar': 'نأسف لذلك. الرجاء تزويدنا بالتفاصيل وسنقوم بالمتابعة.'
+            }
+        }
+
+    def predict_intent(self, text: str):
+        inputs = self.tokenizer(text, return_tensors='pt', truncation=True, padding=True, max_length=128)
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            logits = outputs.logits
+            pred = torch.argmax(logits, dim=1).item()
+        intent = self.id2label[str(pred)]
+        return intent
+
+    def detect_language(self, text: str) -> str:
+        # simple heuristic
+        for ch in text:
+            if '\u0600' <= ch <= '\u06FF':
+                return 'ar'
+        return 'en'
+
+    def get_response(self, text: str) -> str:
+        intent = self.predict_intent(text)
+        lang = self.detect_language(text)
+        reply = self.replies.get(intent, {}).get(lang) or self.replies.get(intent, {}).get('en') or 'Sorry, I cannot process that request.'
+        return reply
+```
+
+---
+
+### `main.py` — واجهة Flask وHTML
+
+```python
+# main.py
+from flask import Flask, request, jsonify, render_template
+from responder import ChatResponder
+import logging
+
+app = Flask(__name__)
+responder = ChatResponder()
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.get_json() or {}
+    msg = data.get('message','').strip()
+    if not msg:
+        return jsonify({'success': False, 'reply': '⚠️ يرجى إرسال رسالة.'}), 400
+    reply = responder.get_response(msg)
+    return jsonify({'success': True, 'reply': reply})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+```
+
+---
+
+### `templates/index.html` — صفحة الواجهة (Arabic RTL + basic JS)
+
+```html
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>المساعد الذكي - مشروع mBERT</title>
+  <style>
+    body{font-family:Arial, sans-serif; background:#f4f6f8; padding:20px}
+    .chat{max-width:800px;margin:0 auto;background:#fff;padding:20px;border-radius:8px}
+    .messages{height:400px;overflow:auto;border:1px solid #eee;padding:10px}
+    .msg.user{text-align:right;color:#111}
+    .msg.bot{color:#0b57a4}
+    input{width:calc(100% - 90px);padding:10px}
+    button{padding:10px}
+  </style>
+</head>
+<body>
+<div class="chat">
+  <h2>المساعد الذكي</h2>
+  <div class="messages" id="messages"></div>
+  <div style="margin-top:10px">
+    <input id="message" placeholder="أكتب رسالتك...">
+    <button onclick="send()">إرسال</button>
+  </div>
+</div>
+<script>
+function append(role, text){
+  const d=document.createElement('div'); d.className='msg '+(role==='user'?'user':'bot'); d.innerText=text; document.getElementById('messages').appendChild(d);
+}
+function send(){
+  const msg=document.getElementById('message').value.trim(); if(!msg) return; append('user', msg);
+  fetch('/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg})})
+  .then(r=>r.json()).then(j=>{ append('bot', j.reply || '⚠️ خطأ'); document.getElementById('message').value=''; })
+  .catch(e=>append('bot','⚠️ خطأ في الاتصال'));
+}
+</script>
+</body>
+</html>
+```
+
+---
+
+### `README.md` — تعليمات تشغيل سريعة
+
+```
+1) ثبت المتطلبات:
+   pip install -r requirements.txt
+
+2) جهز البيانات التدريبية في data/sample_dataset.csv (أو استخدم الملف المرفق).
+
+3) درب النموذج (اختياري للنسخة السريعة):
+   python train.py
+   سيحفظ النموذج في مجلد saved_model/
+
+4) شغّل السيرفر:
+   python main.py
+
+5) افتح المتصفح:
+   http://127.0.0.1:5000
+
+ملاحظة: لتسليم أكاديمي يمكنك تضمين نتائج التدريب (accuracy, f1) في التقرير.
+```
+
+---
+
+### `report_template.md` — قالب تقرير تسليم سريع
+
+```
+# تقرير مشروع: شات بوت متعدد اللغات (mBERT)
+
+## الملخص التنفيذي
+... (ضع هنا ملخص المشروع)
+
+## المقدمة
+... (لماذا المشروع مهم)
+
+## الأدوات والبيئة
+- Python
+- Transformers (HuggingFace)
+- mBERT
+- Flask
+
+## المنهجية
+- جمع البيانات
+- تنظيف
+- Fine-tuning
+- توزيع train/test
+- بناء منطق الردود
+
+## النتائج
+- Accuracy: X
+- F1-score: Y
+- أمثلة مدخلات صحيحة وخاطئة
+
+## الخلاصة
+...
+```
+
+---
+
+## نص تسليم سريع للعميلة (Copy-Paste)
+
+```
+سلمت لك مشروع الشات بوت اليوم بنسخة جاهزة للعمل محليًا: مكوّناته: نموذج mBERT لتصنيف النوايا، واجهة ويب بسيطة، وملف تدريب لتوليد نموذجك الخاص. إذا تبين تدرّبنّي النموذج وأعطيك نموذج مُدرّب وصيغ التقرير النهائي - أقدر أفضي الوقت وأنجزه اليوم.
+```
+
+---
+
+## ملاحظات نهائية وسريعة
+
+* لو تبينني أوفر نموذج مُدرّب جاهز (ملف `saved_model`)، أقدر أدرّب على بيئة فيها GPU ثم أرفع لك الملفات. لكن التدريب هنا محليًا ممكن وبسيط للبيانات الصغيرة.
+* لو تبين deploy على Replit أو Railway أجهز لك خطوات النشر.
+
+---
+
+**انتهى** — أرسلت لك المشروع كامل في هذا المستند. انسخي الملفات وشغّليها. لو تبين، أقدر أجهز لك النموذج المدرب وأرفعه كملف ZIP.

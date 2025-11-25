@@ -1,0 +1,74 @@
+[
+  {
+    "city": "الرياض",
+    "city_en": "Riyadh",
+    "temp": 28,
+    "humidity": 45,
+    "condition": "مشمس",
+    "condition_en": "Sunny",
+    "wind": "15 كم/س"
+  },
+  {
+    "city": "جدة",
+    "city_en": "Jeddah",
+    "temp": 32,
+    "humidity": 60,
+    "condition": "غائم جزئياً",
+    "condition_en": "Partly Cloudy",
+    "wind": "20 كم/س"
+  },
+  {
+    "city": "الدمام",
+    "city_en": "Dammam",
+    "temp": 30,
+    "humidity": 55,
+    "condition": "رطب",
+    "condition_en": "Humid",
+    "wind": "18 كم/س"
+  },
+  {
+    "city": "أبها",
+    "city_en": "Abha",
+    "temp": 22,
+    "humidity": 40,
+    "condition": "معتدل",
+    "condition_en": "Moderate",
+    "wind": "10 كم/س"
+  },
+  {
+    "city": "تبوك",
+    "city_en": "Tabuk",
+    "temp": 25,
+    "humidity": 35,
+    "condition": "بارد نسبياً",
+    "condition_en": "Slightly Cold",
+    "wind": "12 كم/س"
+  },
+  {
+    "city": "مكة",
+    "city_en": "Mecca",
+    "temp": 35,
+    "humidity": 50,
+    "condition": "حار",
+    "condition_en": "Hot",
+    "wind": "22 كم/س"
+  },
+  {
+    "city": "المدينة",
+    "city_en": "Medina",
+    "temp": 33,
+    "humidity": 48,
+    "condition": "صحو",
+    "condition_en": "Clear",
+    "wind": "16 كم/س"
+  },
+  {
+    "city": "الطائف",
+    "city_en": "Taif",
+    "temp": 24,
+    "humidity": 42,
+    "condition": "معتدل",
+    "condition_en": "Moderate",
+    "wind": "14 كم/س"
+  }
+]

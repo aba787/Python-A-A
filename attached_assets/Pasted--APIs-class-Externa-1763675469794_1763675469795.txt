@@ -1,0 +1,407 @@
+دعني أضيف اتصالات حقيقية بالإنترنت وAPIs.
+
+🔧 إضافة اتصالات حقيقية بالإنترنت
+استبدل class ExternalDataManager بهذا الإصدار المحسن:
+
+python
+class ExternalDataManager:
+    """مدير البيانات الخارجية مع اتصالات حقيقية بالإنترنت"""
+
+    def __init__(self):
+        self.data_sources = {}
+        self.setup_sample_datasets()
+        self.medical_database = self.load_medical_database()
+        self.session = requests.Session()
+        self.session.timeout = (5, 10)  # 5 seconds connect, 10 seconds read
+
+    def get_real_time_data(self, data_type, query):
+        """الحصول على بيانات حقيقية من الإنترنت"""
+        try:
+            if data_type == "weather":
+                return self.get_real_weather_from_api(query)
+            elif data_type == "news":
+                return self.get_real_news_from_api()
+            elif data_type == "currency":
+                return self.get_currency_rates()
+            elif data_type == "covid":
+                return self.get_covid_stats()
+            elif data_type == "stock":
+                return self.get_stock_price(query)
+            elif data_type == "translate":
+                return self.translate_text(query)
+            else:
+                return None
+        except Exception as e:
+            print(f"❌ خطأ في جلب البيانات الحقيقية: {e}")
+            return None
+
+    def get_real_weather_from_api(self, city):
+        """جلب بيانات الطقس الحقيقية من API مجاني"""
+        try:
+            # استخدام API مجاني بدون مفتاح
+            city_mapping = {
+                "الرياض": "Riyadh", "جدة": "Jeddah", "الدمام": "Dammam",
+                "أبها": "Abha", "تبوك": "Tabuk", "مكة": "Mecca",
+                "المدينة": "Medina", "الطائف": "Taif"
+            }
+            
+            english_city = city_mapping.get(city, city)
+            
+            # محاولة مع wttr.in (API مجاني بدون مفتاح)
+            url = f"http://wttr.in/{english_city}?format=j1"
+            response = self.session.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                current = data['current_condition'][0]
+                
+                return {
+                    "city": city,
+                    "city_en": english_city,
+                    "temp": int(current['temp_C']),
+                    "humidity": int(current['humidity']),
+                    "condition": self.translate_weather_condition(current['weatherDesc'][0]['value']),
+                    "condition_en": current['weatherDesc'][0]['value'],
+                    "wind": f"{current['windspeedKmph']} كم/س",
+                    "feels_like": f"{current['FeelsLikeC']}°C",
+                    "visibility": f"{current['visibility']} km",
+                    "source": "wttr.in API 🌐",
+                    "real_time": True,
+                    "timestamp": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                }
+                
+        except Exception as e:
+            print(f"❌ خطأ في API الطقس: {e}")
+        
+        # Fallback إلى بيانات محلية
+        return self.get_weather_info(city)
+
+    def get_real_news_from_api(self):
+        """جلب أخبار حقيقية من RSS feeds"""
+        try:
+            import feedparser
+            
+            news_sources = [
+                "https://www.bbc.com/news/world/middle_east/rss.xml",
+                "https://feeds.skynews.com/feeds/rss/world.xml",
+                "https://rss.cnn.com/rss/edition.rss"
+            ]
+            
+            news_items = []
+            for source in news_sources:
+                try:
+                    feed = feedparser.parse(source)
+                    for entry in feed.entries[:2]:  # أول خبرين من كل مصدر
+                        news_items.append({
+                            'title': entry.title[:100] + '...' if len(entry.title) > 100 else entry.title,
+                            'link': entry.link,
+                            'source': feed.feed.title if hasattr(feed.feed, 'title') else 'International News',
+                            'published': entry.published if hasattr(entry, 'published') else ''
+                        })
+                        if len(news_items) >= 5:  # حد أقصى 5 أخبار
+                            break
+                except Exception as e:
+                    print(f"❌ خطأ في مصدر الأخبار {source}: {e}")
+                    continue
+                    
+            return news_items[:5]  # إرجاع أول 5 أخبار
+            
+        except Exception as e:
+            print(f"❌ خطأ في جلب الأخبار: {e}")
+            return []
+
+    def get_currency_rates(self):
+        """أسعار العملات الحقيقية"""
+        try:
+            # استخدام API مجاني لأسعار العملات
+            url = "https://api.exchangerate.host/latest?base=USD"
+            response = self.session.get(url, timeout=5)
+            
+            if response.status_code == 200:
+                data = response.json()
+                rates = data.get('rates', {})
+                
+                return {
+                    "USD": 1.0,
+                    "SAR": rates.get('SAR', 3.75),
+                    "EUR": rates.get('EUR', 0.85),
+                    "GBP": rates.get('GBP', 0.73),
+                    "source": "exchangerate.host 🌐",
+                    "timestamp": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+                }
+                
+        except Exception as e:
+            print(f"❌ خطأ في أسعار العملات: {e}")
+        
+        # بيانات افتراضية
+        return {
+            "USD": 1.0,
+            "SAR": 3.75,
+            "EUR": 0.85,
+            "GBP": 0.73,
+            "source": "بيانات افتراضية",
+            "timestamp": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+        }
+
+    def get_covid_stats(self):
+        """إحصائيات كوفيد-19"""
+        try:
+            url = "https://disease.sh/v3/covid-19/all"
+            response = self.session.get(url, timeout=5)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "cases": f"{data.get('cases', 0):,}",
+                    "deaths": f"{data.get('deaths', 0):,}",
+                    "recovered": f"{data.get('recovered', 0):,}",
+                    "active": f"{data.get('active', 0):,}",
+                    "source": "disease.sh API 🦠",
+                    "timestamp": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+                }
+                
+        except Exception as e:
+            print(f"❌ خطأ في إحصائيات كوفيد: {e}")
+        
+        return None
+
+    def get_stock_price(self, symbol):
+        """أسعار الأسهم (بيانات تجريبية)"""
+        try:
+            # هذه بيانات تجريبية - في الواقع تحتاج API key
+            stock_data = {
+                "AAPL": {"price": 182.63, "change": "+1.25%", "name": "Apple Inc."},
+                "GOOGL": {"price": 138.21, "change": "+0.85%", "name": "Alphabet Inc."},
+                "MSFT": {"price": 378.85, "change": "+2.15%", "name": "Microsoft Corp."},
+                "TSLA": {"price": 248.42, "change": "-1.25%", "name": "Tesla Inc."},
+                "2222.SR": {"price": 41.80, "change": "+0.60%", "name": "Aramco"}
+            }
+            
+            symbol_upper = symbol.upper()
+            if symbol_upper in stock_data:
+                return {
+                    **stock_data[symbol_upper],
+                    "symbol": symbol_upper,
+                    "source": "بيانات تجريبية 📈",
+                    "timestamp": datetime.datetime.now().strftime('%H:%M')
+                }
+                
+        except Exception as e:
+            print(f"❌ خطأ في بيانات الأسهم: {e}")
+        
+        return None
+
+    def translate_text(self, text):
+        """ترجمة النص (محاكاة)"""
+        try:
+            # في الواقع تحتاج Google Translate API
+            translations = {
+                "hello": "مرحباً",
+                "thank you": "شكراً",
+                "how are you": "كيف حالك",
+                "weather": "الطقس",
+                "time": "الوقت",
+                "price": "السعر"
+            }
+            
+            text_lower = text.lower()
+            if text_lower in translations:
+                return {
+                    "original": text,
+                    "translated": translations[text_lower],
+                    "source": "نظام الترجمة المحلي"
+                }
+                
+        except Exception as e:
+            print(f"❌ خطأ في الترجمة: {e}")
+        
+        return None
+
+    def search_web(self, query):
+        """بحث ويب مبسط (محاكاة)"""
+        try:
+            # هذه محاكاة للبحث - في الواقع تحتاج Google Search API
+            results = [
+                {
+                    "title": f"نتائج عن: {query}",
+                    "snippet": f"هذا محاكاة لنتائج البحث عن '{query}'. في النظام الحقيقي، سيتم جلب نتائج حقيقية من محركات البحث.",
+                    "link": "#",
+                    "source": "محاكاة البحث 🔍"
+                }
+            ]
+            return results
+            
+        except Exception as e:
+            print(f"❌ خطأ في البحث: {e}")
+            return []
+
+    def get_system_info(self):
+        """معلومات النظام والاتصال"""
+        try:
+            import psutil
+            import platform
+            
+            return {
+                "system": platform.system(),
+                "processor": platform.processor(),
+                "memory_usage": f"{psutil.virtual_memory().percent}%",
+                "disk_usage": f"{psutil.disk_usage('/').percent}%",
+                "python_version": platform.python_version(),
+                "internet_connection": self.check_internet_connection(),
+                "timestamp": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            
+        except Exception as e:
+            print(f"❌ خطأ في معلومات النظام: {e}")
+            return {}
+
+    def check_internet_connection(self):
+        """فحص الاتصال بالإنترنت"""
+        try:
+            response = self.session.get("http://www.google.com", timeout=5)
+            return response.status_code == 200
+        except:
+            return False
+🎯 الآن أضف دوال جديدة للمعالجة الذكية:
+أضف هذه الدوال في InteractiveChatBot:
+
+python
+def handle_smart_queries(self, user_input):
+    """معالجة الاستعلامات الذكية مع اتصال إنترنت حقيقي"""
+    try:
+        user_input_lower = user_input.lower()
+        
+        # فحص الاتصال بالإنترنت أولاً
+        internet_status = self.data_manager.check_internet_connection()
+        
+        if not internet_status:
+            return {
+                "text": "🌐 عذراً، لا يوجد اتصال بالإنترنت حالياً.\n\n🔧 جرب الأسئلة المحلية:\n• الوقت والتاريخ\n• قاعدة البيانات المحلية\n• المعلومات المخزنة مسبقاً",
+                "type": "no_internet"
+            }
+
+        # استعلامات الطقس الحقيقية
+        if any(word in user_input_lower for word in ['طقس', 'weather', 'درجة حرارة']):
+            cities = ["الرياض", "جدة", "الدمام", "أبها", "تبوك", "مكة", "المدينة", "الطائف"]
+            for city in cities:
+                if city in user_input:
+                    real_weather = self.data_manager.get_real_weather_from_api(city)
+                    if real_weather and real_weather.get('real_time'):
+                        return {
+                            "text": f"""🌤️ الطقس الحقيقي في {real_weather['city']}:
+
+🌡️ درجة الحرارة: {real_weather['temp']}°م
+💧 الرطوبة: {real_weather['humidity']}%
+☀️ الحالة: {real_weather['condition']}
+💨 سرعة الرياح: {real_weather['wind']}
+🌡️ الشعور: {real_weather.get('feels_like', 'N/A')}
+👁️ الرؤية: {real_weather.get('visibility', 'N/A')}
+
+✅ بيانات حية من الإنترنت 🌐
+🕒 آخر تحديث: {real_weather['timestamp']}""",
+                            "type": "real_weather",
+                            "data": real_weather
+                        }
+
+        # أخبار حقيقية
+        if any(word in user_input_lower for word in ['أخبار', 'news', 'أحدث الأخبار']):
+            real_news = self.data_manager.get_real_news_from_api()
+            if real_news:
+                response_text = "📰 آخر الأخبار الدولية الحية:\n\n"
+                for i, news in enumerate(real_news[:3], 1):
+                    response_text += f"{i}. {news['title']}\n   📰 المصدر: {news['source']}\n   🕒 {news.get('published', '')}\n\n"
+                response_text += "🌐 تم جلب الأخبار مباشرة من مصادر إخبارية دولية"
+                return {
+                    "text": response_text,
+                    "type": "real_news",
+                    "data": real_news
+                }
+
+        # أسعار العملات
+        if any(word in user_input_lower for word in ['سعر', 'عملة', 'دولار', 'ريال', 'currency', 'exchange']):
+            currency_rates = self.data_manager.get_currency_rates()
+            if currency_rates:
+                return {
+                    "text": f"""💱 أسعار العملات الحية:
+
+💰 1 دولار أمريكي = {currency_rates['SAR']} ريال سعودي
+💰 1 دولار أمريكي = {currency_rates['EUR']} يورو
+💰 1 دولار أمريكي = {currency_rates['GBP']} جنيه إسترليني
+
+🌐 مصدر البيانات: {currency_rates['source']}
+🕒 التحديث: {currency_rates['timestamp']}""",
+                    "type": "currency_rates",
+                    "data": currency_rates
+                }
+
+        # معلومات كوفيد
+        if any(word in user_input_lower for word in ['كورونا', 'كوفيد', 'covid', 'corona']):
+            covid_stats = self.data_manager.get_covid_stats()
+            if covid_stats:
+                return {
+                    "text": f"""🦠 إحصائيات كوفيد-19 العالمية:
+
+😷 الإصابات: {covid_stats['cases']}
+💀 الوفيات: {covid_stats['deaths']}
+💚 المتعافون: {covid_stats['recovered']}
+🟡 الحالات النشطة: {covid_stats['active']}
+
+🌐 مصدر البيانات: {covid_stats['source']}
+🕒 التحديث: {covid_stats['timestamp']}""",
+                    "type": "covid_stats",
+                    "data": covid_stats
+                }
+
+        # أسعار الأسهم
+        if any(word in user_input_lower for word in ['سهم', 'أسهم', 'stock', 'share']):
+            stocks = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', '2222.SR']
+            for stock in stocks:
+                if stock.lower() in user_input_lower:
+                    stock_data = self.data_manager.get_stock_price(stock)
+                    if stock_data:
+                        return {
+                            "text": f"""📈 سعر السهم {stock_data['symbol']}:
+
+🏢 الشركة: {stock_data['name']}
+💵 السعر: ${stock_data['price']}
+📊 التغير: {stock_data['change']}
+🕒 الوقت: {stock_data['timestamp']}
+
+📢 {stock_data['source']}""",
+                            "type": "stock_price",
+                            "data": stock_data
+                        }
+
+        # معلومات النظام
+        if any(word in user_input_lower for word in ['معلومات النظام', 'system info', 'الاتصال']):
+            system_info = self.data_manager.get_system_info()
+            internet_status = "✅ متصل بالإنترنت" if system_info.get('internet_connection') else "❌ غير متصل"
+            
+            return {
+                "text": f"""🖥️ معلومات النظام والاتصال:
+
+💻 النظام: {system_info.get('system', 'N/A')}
+🐍 بايثون: {system_info.get('python_version', 'N/A')}
+🧠 الذاكرة: {system_info.get('memory_usage', 'N/A')}
+💾 التخزين: {system_info.get('disk_usage', 'N/A')}
+🌐 الإنترنت: {internet_status}
+
+🕒 الوقت: {system_info.get('timestamp', 'N/A')}""",
+                "type": "system_info",
+                "data": system_info
+            }
+
+        return None
+
+    except Exception as e:
+        print(f"❌ خطأ في الاستعلامات الذكية: {e}")
+        return None
+🔄 ثم عدل دالة find_response:
+أضف هذا قبل external_response:
+
+python
+# معالجة الاستعلامات الذكية مع الإنترنت أولاً
+smart_response = self.handle_smart_queries(user_input_clean)
+if smart_response:
+    self.save_conversation(user_input_clean, smart_response["text"], 0.95, 0.005)
+    return smart_response

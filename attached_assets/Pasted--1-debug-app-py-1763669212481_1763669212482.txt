@@ -1,0 +1,203 @@
+.
+
+🔍 خطوات التشخيص الفوري
+الخطوة 1: تشغيل نسخة مبسطة للتأكد من عمل الخادم
+أنشئ ملف debug_app.py:
+
+python
+from flask import Flask, request, jsonify
+import logging
+import sys
+
+# إعداد التسجيل المفصل
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Debug Chatbot</title>
+        <meta charset="utf-8">
+        <style>
+            body { font-family: Arial; margin: 40px; }
+            .chat { border: 1px solid #ccc; padding: 20px; height: 400px; overflow-y: scroll; margin: 20px 0; }
+            .user { color: blue; margin: 10px 0; }
+            .bot { color: green; margin: 10px 0; }
+            .error { color: red; }
+        </style>
+    </head>
+    <body>
+        <h1>🤖 Debug Chatbot - نسخة التشغيل</h1>
+        <div id="chat" class="chat"></div>
+        <input type="text" id="message" placeholder="اكتب رسالتك..." style="width: 300px; padding: 10px;">
+        <button onclick="sendMessage()" style="padding: 10px 20px;">إرسال</button>
+        
+        <script>
+            async function sendMessage() {
+                const message = document.getElementById('message').value;
+                const chat = document.getElementById('chat');
+                
+                if (!message) return;
+                
+                // عرض رسالة المستخدم
+                chat.innerHTML += `<div class="user"><strong>أنت:</strong> ${message}</div>`;
+                document.getElementById('message').value = '';
+                
+                try {
+                    console.log('📤 إرسال الرسالة:', message);
+                    
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({message: message})
+                    });
+                    
+                    console.log('📥 حالة الاستجابة:', response.status);
+                    
+                    const data = await response.json();
+                    console.log('📊 بيانات الاستجابة:', data);
+                    
+                    if (response.ok) {
+                        chat.innerHTML += `<div class="bot"><strong>البوت:</strong> ${data.response}</div>`;
+                    } else {
+                        chat.innerHTML += `<div class="error"><strong>خطأ:</strong> ${data.error || 'خطأ غير معروف'}</div>`;
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ خطأ في الإرسال:', error);
+                    chat.innerHTML += `<div class="error"><strong>خطأ شبكة:</strong> ${error.message}</div>`;
+                }
+                
+                chat.scrollTop = chat.scrollHeight;
+            }
+            
+            // السماح بالإرسال بالزر Enter
+            document.getElementById('message').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') sendMessage();
+            });
+        </script>
+    </body>
+    </html>
+    '''
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    try:
+        print("🎯 تم استلام طلب في /chat")
+        
+        if not request.is_json:
+            print("❌ الطلب ليس JSON")
+            return jsonify({'error': 'الطلب يجب أن يكون JSON'}), 400
+        
+        data = request.get_json()
+        print(f"📨 البيانات المستلمة: {data}")
+        
+        if not data or 'message' not in data:
+            print("❌ لا توجد رسالة في البيانات")
+            return jsonify({'error': 'الرسالة مطلوبة'}), 400
+        
+        user_message = data['message']
+        print(f"👤 رسالة المستخدم: {user_message}")
+        
+        # رد بسيط جداً للتأكد من العمل
+        response = f"تم استلام رسالتك: '{user_message}'. النظام يعمل!"
+        
+        print(f"🤖 الرد المرسل: {response}")
+        return jsonify({
+            'response': response,
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        print(f"💥 خطأ كبير في /chat: {str(e)}")
+        import traceback
+        print(f"🔍 تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        return jsonify({
+            'error': f'خطأ داخلي: {str(e)}',
+            'details': 'تحقق من سجلات الخادم'
+        }), 500
+
+@app.route('/health')
+def health():
+    return jsonify({
+        'status': 'healthy',
+        'service': 'debug_chatbot',
+        'timestamp': '2024-01-01T00:00:00Z'
+    })
+
+if __name__ == '__main__':
+    print("🚀 بدء تشغيل تطبيق التصحيح...")
+    print("📍 سيعمل على: http://localhost:5000")
+    print("🔍 تحقق من: http://localhost:5000/health")
+    
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        debug=True,
+        use_reloader=True
+    )
+الخطوة 2: تشغيل وتجربة النسخة المبسطة
+شغل الملف الجديد:
+
+bash
+python debug_app.py
+افتح المتصفح واذهب إلى:
+
+text
+http://localhost:5000
+الخطوة 3: فتح أدوات المطور للمتصفح
+في المتصفح، اضغط F12 ثم:
+
+علامة Console - لرؤية أخطاء JavaScript
+
+علامة Network - لرؤية طلبات HTTP واستجاباتها
+
+الخطوة 4: تشخيص المشكلة من السجلات
+افتح terminal جديد وشغل هذا الأمر لرؤية السجلات:
+
+bash
+# Linux/Mac
+tail -f debug_app.py
+
+# Windows (PowerShell)
+Get-Content debug_app.py -Wait
+🔧 إذا استمرت المشكلة، جرب هذه الحلول:
+الحل 1: تغيير المنفذ
+python
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000, debug=True)  # جرب منفذ مختلف
+الحل 2: إعادة تثبيت Flask
+bash
+pip uninstall flask -y
+pip install flask==2.3.0
+الحل 3: تشغيل بدون debug mode
+python
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)
+الحل 4: فحص المنافذ المستخدمة
+bash
+# Linux/Mac
+lsof -i :5000
+
+# Windows
+netstat -ano | findstr :5000
+🎯 أخبرني بالنتائج التالية:
+ما الذي يظهر في terminal عند تشغيل debug_app.py؟
+
+ما الذي يظهر في Console بالمتصفح (F12)؟
+
+هل ترى أي طلبات في علامة Network؟
+
+ما هي الرسالة الدقيقة للخطأ؟
+
